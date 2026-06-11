@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Social “Me”dia</title>
+
+    <style>
+        :root { 
+            --bg-color: #000; 
+            --accent: #00ffcc; 
+            --text-main: #ffffff;
+            --text-dim: #a8a8a8;
+            --border: #1a1a1a;
+            --heart-red: #ff3040;
+            --nav-bg: rgba(0, 0, 0, 0.9);
+            --modal-bg: rgba(15, 15, 15, 0.98);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background-color: var(--bg-color); 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        /* 顶部导航栏样式 */
+        nav {
+            position: fixed; top: 0; width: 100%; height: 60px;
+            background: var(--nav-bg); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; backdrop-filter: blur(20px);
+        }
+        .nav-content { 
+            width: 100%; max-width: 800px; 
+            display: flex; justify-content: space-between; 
+            padding: 0 20px; align-items: center;
+        }
+        
+        .nav-left { display: flex; align-items: center; gap: 15px; }
+        .logo { font-family: 'Courier New', monospace; font-weight: bold; font-size: 18px; letter-spacing: 1px; color: var(--text-main); }
+        
+        .lang-select {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); font-size: 11px; padding: 4px 6px;
+            border-radius: 4px; outline: none; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-select:hover { border-color: var(--accent); color: white; }
+
+        .nav-right { display: flex; align-items: center; gap: 20px; }
+
+        .create-btn {
+            background: var(--accent); color: #000;
+            padding: 6px 14px; border-radius: 20px;
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            border: none; transition: transform 0.1s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .create-btn:active { transform: scale(0.95); opacity: 0.9; }
+
+        /* 主信息流基础布局 */
+        main { margin-top: 60px; width: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
+
+        .post {
+            width: 100%; max-width: 500px;
+            background: var(--bg-color);
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .post-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; }
+
+        .profile-link {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+        .profile-link:hover {
+            opacity: 0.8;
+        }
+
+        .avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            background: linear-gradient(45deg, #222, #444);
+            margin-right: 12px; border: 1px solid var(--border);
+            object-fit: cover;
+            display: block;
+        }
+        .username { font-weight: 600; font-size: 14px; margin-right: 10px; }
+        
+        .follow-btn { font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; transition: 0.2s; padding: 4px 8px; }
+        .follow-btn.following { color: var(--text-dim); }
+
+        /* 视频容器与自适应设计 */
+        .media-box { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1 / 1;
+            background: #050505; 
+            overflow: hidden; 
+            cursor: pointer;
+        }
+        
+        /* 视频主体样式 */
+        .feed-video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            display: block; 
+            pointer-events: auto;
+        }
+
+        /* 视频角落的控制小按钮 */
+        .video-controls {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .video-controls:active {
+            transform: scale(0.9);
+        }
+        .video-controls svg {
+            width: 16px;
+            height: 16px;
+            fill: #ffffff;
+        }
+
+        /* 本地视频加载失败时的提示界面 */
+        .video-error-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #111;
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            color: var(--text-dim);
+            z-index: 2;
+        }
+        .video-error-overlay p {
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+        .video-error-overlay code {
+            background: #222;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--accent);
+            font-family: monospace;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .pop-heart {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            pointer-events: none; z-index: 10; filter: drop-shadow(0 0 15px rgba(255,48,64,0.4));
+        }
+        .pop-heart.animate { animation: heart-pop 0.8s ease-out; }
+        @keyframes heart-pop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            30% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        .post-footer { padding: 12px 16px; }
+        .action-btns { display: flex; gap: 18px; margin-bottom: 8px; }
+        .btn-svg { cursor: pointer; transition: transform 0.1s; background: none; border: none; color: white; padding: 0; }
+        .btn-svg:active { transform: scale(0.8); }
+        .btn-svg.liked { color: var(--heart-red); }
+
+        .stats { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+        .caption { font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+        .caption b { margin-right: 8px; }
+
+        .comments-area { margin-top: 5px; }
+        .comment-row { font-size: 14px; margin-bottom: 4px; }
+        .comment-row b.user-label { margin-right: 6px; }
+
+        .comment-bar { display: flex; align-items: center; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px; }
+        .comment-input { background: transparent; border: none; color: white; flex: 1; font-size: 14px; outline: none; }
+        .post-action { color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; opacity: 0.4; pointer-events: none; }
+        .post-action.active { opacity: 1; pointer-events: auto; }
+
+        #shareModal, #echoModal, #conceptModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000;
+            display: none; justify-content: center; align-items: center;
+            backdrop-filter: blur(15px);
+        }
+        .modal-content {
+            background: var(--modal-bg); width: 90%; max-width: 420px;
+            padding: 30px 20px; border-radius: 32px; border: 1px solid var(--border);
+            text-align: center; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 24px; color: var(--text-main); letter-spacing: 1px; }
+        .share-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+        
+        .share-item { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: 0.3s; }
+        .share-item span { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+        
+        .cute-icon-box {
+            width: 64px; height: 64px; border-radius: 22px;
+            display: flex; justify-content: center; align-items: center;
+            background: #151515; position: relative; overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .share-item:hover .cute-icon-box { transform: translateY(-5px) scale(1.05); background: #222; }
+
+        .icon-svg { width: 32px; height: 32px; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .brand-friend { stroke: #ff8df1; }
+        .brand-family { stroke: #7df9ff; }
+        .brand-others { stroke: #e0ff7d; }
+
+        /* Instagram-style share item bottom button list */
+        .share-actions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 5px;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .action-row-btn {
+            background: #111;
+            border: 1px solid var(--border);
+            padding: 14px 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: left;
+        }
+        .action-row-btn:hover {
+            border-color: var(--accent);
+            background: #161616;
+            color: var(--accent);
+        }
+        .action-row-btn:active {
+            transform: scale(0.98);
+        }
+        .action-row-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .echo-content { padding: 30px 20px; color: var(--text-main); }
+        .echo-quote {
+            font-size: 20px; font-weight: 300; line-height: 1.6; margin-bottom: 25px;
+            font-style: italic; color: var(--accent); text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+        .echo-author { font-size: 13px; color: var(--text-dim); letter-spacing: 3px; }
+        
+        /* Project Concept Text styling */
+        .concept-body {
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-dim);
+            text-align: left;
+            margin-bottom: 25px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        /* Custom scrollbar for concept text box */
+        .concept-body::-webkit-scrollbar { width: 4px; }
+        .concept-body::-webkit-scrollbar-track { background: #0c0c0c; }
+        .concept-body::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+        .close-echo {
+            margin-top: 15px; background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); padding: 10px 20px; border-radius: 30px;
+            cursor: pointer; font-size: 12px; transition: 0.3s;
+            letter-spacing: 1px;
+            width: 100%;
+        }
+        .close-echo:hover { border-color: var(--accent); color: var(--text-main); }
+
+        .icon-path { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .filled { fill: currentColor; stroke: none; }
+
+        /* Dynamic Toast Notification Styling */
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 255, 204, 0.95);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 13px;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 255, 204, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-content">
+            <div class="nav-left">
+                <div class="logo">Social “Me”dia: The Selected Self</div>
+                <select class="lang-select" id="langSwitcher">
+                    <option value="en">EN</option>
+                    <option value="zh">ZH</option>
+                    <option value="it">IT</option>
+                </select>
+            </div>
+            <div class="nav-right">
+                <button class="create-btn" id="createBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span id="createTxt">Create</span>
+                </button>
+                <div style="display:flex; gap:16px; font-size:18px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24"><circle class="icon-path" cx="12" cy="12" r="10"/><path class="icon-path" d="M12 6v6l4 2"/></svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24"><path class="icon-path" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle class="icon-path" cx="12" cy="7" r="4"/></svg>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主信息流容器，JS 会把帖子渲染在这里 -->
+    <main id="feed-root"></main>
+
+    <!-- 分享组件与回响组件 -->
+    <div id="shareModal">
+        <div class="modal-content">
+            <div class="modal-title" id="shareTitle">Share to Virtual Sphere</div>
+            
+            <div class="share-grid">
+                <div class="share-item"><div class="cute-icon-box"><svg class="icon-svg brand-friend" viewBox="0 0 24 24"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></div><span id="friendTxt">Friend</span></div>
+                <div class="share-item"><div class="cute-icon-box"><svg class="icon-svg brand-family" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div><span id="familyTxt">Family</span></div>
+                <div class="share-item"><div class="cute-icon-box"><svg class="icon-svg brand-others" viewBox="0 0 24 24"><path d="M4 12c4-4 12-4 16 0"/><path d="M4 16c4-4 12-4 16 0" opacity="0.4"/><circle cx="12" cy="9" r="1" fill="currentColor"/></svg></div><span id="othersTxt">Others</span></div>
+            </div>
+
+            <!-- Instagram-Style Bottom-Panel Actions List -->
+            <div class="share-actions-list">
+                <button class="action-row-btn" id="copyLinkBtn">
+                    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                    <span id="copyLinkTxt">Copy Link</span>
+                </button>
+                <button class="action-row-btn" id="conceptBtn">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span id="conceptBtnTxt">Project Concept</span>
+                </button>
+                <button class="action-row-btn" id="soulEchoBtn">
+                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <span id="soulEchoTxt">Discover Soul Echo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Concept Insight Modal -->
+    <div id="conceptModal">
+        <div class="modal-content echo-content">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); margin: 0 auto 15px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <div class="modal-title" id="conceptTitle">Project Concept</div>
+            <div class="concept-body" id="conceptBody">Concept statement placeholder</div>
+            <button class="close-echo" id="closeConceptBtn" onclick="document.getElementById('conceptModal').style.display='none'">RETURN</button>
+        </div>
+    </div>
+
+    <!-- Soul Echo Modal (Carl Jung Quotation View) -->
+    <div id="echoModal">
+        <div class="modal-content echo-content">
+            <div class="echo-quote" id="echoQuote">"The privilege of a lifetime is to become who you truly are."</div>
+            <div class="echo-author" id="echoAuthor">— CARL JUNG</div>
+            <button class="close-echo" id="closeEchoBtn" onclick="document.getElementById('echoModal').style.display='none'">RETURN TO FEED</button>
+        </div>
+    </div>
+
+    <!-- Dynamic Toast Notification for Clipboard confirmation -->
+    <div id="toastNotification" class="toast">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span id="toastMsg">Link copied!</span>
+    </div>
+
+    <script>
+        // 国际化语言配置
+        const i18n = {
+            en: {
+                create: "Create", follow: "Follow", following: "Following", likes: "likes",
+                commentPlaceholder: "Add a comment...", post: "Post", you: "You",
+                shareTitle: "Share to Virtual Sphere",
+                friend: "Friend", family: "Family", others: "Others",
+                echoQuote: "The privilege of a lifetime is to become who you truly are.",
+                echoAuthor: "— CARL JUNG",
+                returnBtn: "RETURN TO FEED",
+                errorTitle: "Video Not Found",
+                errorGuide: "Please make sure your files are correctly linked in the local folder!",
+                
+                // Added share action items dictionary
+                copyLinkTxt: "Copy Link",
+                conceptBtnTxt: "Project Concept",
+                soulEchoTxt: "Discover Soul Echo",
+                conceptTitle: "Project Concept",
+                conceptBody: "This project explores the friction between the biological self and the curated digital avatar. Through intentional glitches and selective visibility, we examine how social platforms force us to edit, fragment, and perform our existence. What is unseen is often more real than what is displayed.",
+                closeConcept: "RETURN TO FEED",
+                copySuccess: "Post link copied to clipboard!"
+            },
+            zh: {
+                create: "发布", follow: "关注", following: "已关注", likes: "次赞",
+                commentPlaceholder: "添加评论...", post: "发布", you: "你",
+                shareTitle: "分享至虚构场域",
+                friend: "朋友", family: "家人", others: "其他",
+                echoQuote: "人一生中最大的特权，就是成为真正的自己。",
+                echoAuthor: "— 荣格",
+                returnBtn: "返回信息流",
+                errorTitle: "视频未找到",
+                errorGuide: "请确保所需的素材与视频文件与 index.html 存储在相同的目录下！",
+                
+                // Added share action items dictionary
+                copyLinkTxt: "复制链接",
+                conceptBtnTxt: "项目概念说明",
+                soulEchoTxt: "探索灵魂回响",
+                conceptTitle: "项目概念说明",
+                conceptBody: "本项目探讨了生物真实的『我』与精心编排的『数字分身』之间的撕裂与张力。通过刻意制造的系统故障和选择性可见性，我们审视了社交平台如何规训我们去剪辑、碎片化并表演自我的存在。那些未被看见的部分，往往比展露出来的更加真实。",
+                closeConcept: "返回信息流",
+                copySuccess: "帖子分享链接已复制到剪贴板！"
+            },
+            it: {
+                create: "Crea", follow: "Segui", following: "Seguito", likes: "mi piace",
+                commentPlaceholder: "Aggiungi un commento...", post: "Pubblica", you: "Tu",
+                shareTitle: "Condividi nella Sfera Virtuale",
+                friend: "Amici", family: "Famiglia", others: "Altro",
+                echoQuote: "Il privilegio di una vita è diventare chi sei veramente.",
+                echoAuthor: "— CARL JUNG",
+                returnBtn: "TORNA AL FEED",
+                errorTitle: "Video Non Trovato",
+                errorGuide: "Assicurati che i file dei video siano salvati nella stessa cartella di questo file 'index.html'!",
+                
+                // Added share action items dictionary
+                copyLinkTxt: "Copia Link",
+                conceptBtnTxt: "Concetto del Progetto",
+                soulEchoTxt: "Scopri l'Eco dell'Anima",
+                conceptTitle: "Concetto del Progetto",
+                conceptBody: "Questo progetto esplora l'attrito tra il sé biologico e l'avatar digitale curato. Attraverso glitch intenzionali e visibilità selettiva, esaminiamo come le piattaforme social ci costringano a modificare, frammentare e interpretare la nostra esistenza. Ciò che non si vede è spesso più reale di ciò che viene mostrato.",
+                closeConcept: "TORNA AL FEED",
+                copySuccess: "Link del post copiato negli appunti!"
+            }
+        };
+
+        let currentLang = 'en';
+        let currentSharedPost = null; // Pointer to track which post is actively being shared
+
+        const postsData = [
+            { 
+                id: "v1", 
+                user: "pigniax_03",
+                likes: 2541, 
+                caption: "seen/unseen",
+                videoSrc: "hu.mp4",
+                avatarSrc: "profilo hu.jpg"
+            },
+            { 
+                id: "v2", 
+                user: "hilo_191",
+                likes: 1890, 
+                caption: "what remains visible",
+                videoSrc: "gao.mp4",
+                avatarSrc: "profilo gao.jpg"
+            },
+            { 
+                id: "v3", 
+                user: "ym.ueng_",
+                likes: 4211, 
+                caption: "selective presence",
+                videoSrc: "deng.mp4",
+                avatarSrc: "profilo deng.jpg"
+            }
+        ];
+
+        function init() {
+            renderFeed();
+            document.getElementById('langSwitcher').addEventListener('change', (e) => {
+                currentLang = e.target.value;
+                updateLanguageUI();
+            });
+
+            // Dialog boxes dismiss bindings
+            const shareModal = document.getElementById('shareModal');
+            shareModal.onclick = (e) => { if(e.target === shareModal) shareModal.style.display = 'none'; };
+
+            const conceptModal = document.getElementById('conceptModal');
+            conceptModal.onclick = (e) => { if(e.target === conceptModal) conceptModal.style.display = 'none'; };
+
+            const echoModal = document.getElementById('echoModal');
+            echoModal.onclick = (e) => { if(e.target === echoModal) echoModal.style.display = 'none'; };
+
+            // Trigger Concept Modal
+            document.getElementById('conceptBtn').onclick = () => {
+                shareModal.style.display = 'none';
+                conceptModal.style.display = 'flex';
+            };
+
+            // Trigger Soul Echo Modal
+            document.getElementById('soulEchoBtn').onclick = () => {
+                shareModal.style.display = 'none';
+                echoModal.style.display = 'flex';
+            };
+
+            // Trigger Clipboard Logic
+            document.getElementById('copyLinkBtn').onclick = () => {
+                shareModal.style.display = 'none';
+                handleCopyAction();
+            };
+        }
+
+        function handleCopyAction() {
+            if (!currentSharedPost) return;
+
+            // Generate virtual sharing address simulating standard Instagram link or custom netart link
+            const mockUrl = `https://www.instagram.com/${currentSharedPost.user}/p/${currentSharedPost.id}_selection`;
+
+            // Transient text area generator to satisfy iframe/clipboard sandboxes
+            const tempInput = document.createElement('textarea');
+            tempInput.value = mockUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast(i18n[currentLang].copySuccess);
+                }
+            } catch (err) {
+                console.error('Copy execution failed', err);
+            }
+            
+            document.body.removeChild(tempInput);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.innerText = message;
+            
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function renderFeed() {
+            const root = document.getElementById('feed-root');
+            root.innerHTML = '';
+            postsData.forEach(p => {
+                const firstLetter = p.user ? p.user.charAt(0).toUpperCase() : 'U';
+                
+                const el = document.createElement('div');
+                el.className = 'post';
+                el.innerHTML = `
+                    <div class="post-header">
+                        <div class="header-left">
+                            <a href="https://www.instagram.com/${p.user}" target="_blank" rel="noopener noreferrer" class="profile-link" title="Visit ${p.user} on Instagram">
+                                <img 
+                                    class="avatar" 
+                                    src="${p.avatarSrc}" 
+                                    onerror="this.src='https://placehold.co/100/111/00ffcc?text=${firstLetter}'" 
+                                    alt="${p.user}"
+                                >
+                                <span class="username">${p.user}</span>
+                            </a>
+                            <span class="follow-btn" id="follow-${p.id}">• ${i18n[currentLang].follow}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="media-box" id="media-${p.id}">
+                        <video 
+                            id="video-el-${p.id}"
+                            class="feed-video" 
+                            src="${p.videoSrc}" 
+                            autoplay 
+                            loop 
+                            muted 
+                            playsinline>
+                        </video>
+                        
+                        <div class="video-error-overlay" id="err-overlay-${p.id}">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <h4 style="margin-top:10px; color:white;" class="err-title">${i18n[currentLang].errorTitle}</h4>
+                            <p class="err-guide">${i18n[currentLang].errorGuide}</p>
+                            <code class="err-code">Location: netart/${p.videoSrc}</code>
+                        </div>
+                        
+                        <div class="video-controls" id="vol-btn-${p.id}" title="Toggle Sound">
+                            <svg id="vol-icon-${p.id}" viewBox="0 0 24 24">
+                                <path d="M3.63 3.63L2.22 5.05L7 9.83v4.35l4 4V13.8l5.46 5.46c-.45.33-.94.61-1.46.81v2.04c1.07-.26 2.06-.75 2.92-1.43l3.03 3.03l1.41-1.41L3.63 3.63zM9 14.17H5v-4h1.17l2.83 2.83v1.17zM15 12c0-1.1-.49-2.07-1.25-2.73l1.43-1.43C16.35 8.92 17 10.38 17 12c0 2.4-1.44 4.46-3.5 5.37v-2.15c.87-.71 1.5-1.78 1.5-3.22zm1.5-7.51c2.89 1.15 5 4 5 7.33a8.9 8.9 0 0 1-1.12 4.31l-1.47-1.47A6.98 6.98 0 0 0 19 11.82c0-2.36-1.52-4.37-3.64-5.12L16.5 4.49zM11 5.82v2.35L8.65 5.82L11 5.82z"/>
+                            </svg>
+                        </div>
+
+                        <div class="pop-heart"><svg width="80" height="80" viewBox="0 0 24 24" fill="#ff3040"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+                    </div>
+                    
+                    <div class="post-footer">
+                        <div class="action-btns">
+                            <button class="btn-svg like-btn" id="lbtn-${p.id}"><svg width="24" height="24" viewBox="0 0 24 24"><path class="icon-path" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+                            <button class="btn-svg share-trigger" id="sbtn-${p.id}"><svg width="24" height="24" viewBox="0 0 24 24"><path class="icon-path" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+                        </div>
+                        <div class="stats" id="stat-${p.id}">${p.likes} ${i18n[currentLang].likes}</div>
+                        <div class="caption"><b>${p.user}</b>${p.caption}</div>
+                        <div class="comments-area" id="comm-list-${p.id}"></div>
+                        <div class="comment-bar">
+                            <input type="text" class="comment-input" placeholder="${i18n[currentLang].commentPlaceholder}" id="input-${p.id}">
+                            <span class="post-action" id="post-${p.id}">${i18n[currentLang].post}</span>
+                        </div>
+                    </div>
+                `;
+                root.appendChild(el);
+                setupLogic(p.id, el, p);
+            });
+        }
+
+        function setupLogic(id, el, postObject) {
+            const followBtn = el.querySelector(`#follow-${id}`);
+            const likeBtn = el.querySelector(`#lbtn-${id}`);
+            const stats = el.querySelector(`#stat-${id}`);
+            const media = el.querySelector('.media-box');
+            const popHeart = el.querySelector('.pop-heart');
+            const input = el.querySelector(`#input-${id}`);
+            const postBtn = el.querySelector(`#post-${id}`);
+            const commList = el.querySelector(`#comm-list-${id}`);
+            
+            const videoEl = el.querySelector(`#video-el-${id}`);
+            const volBtn = el.querySelector(`#vol-btn-${id}`);
+            const volIcon = el.querySelector(`#vol-icon-${id}`);
+            const errOverlay = el.querySelector(`#err-overlay-${id}`);
+
+            let isLiked = false;
+            let isFollowing = false;
+            let currentLikes = postsData.find(x => x.id === id).likes;
+
+            videoEl.onerror = () => {
+                errOverlay.style.display = 'flex';
+                volBtn.style.display = 'none'; 
+            };
+
+            followBtn.onclick = () => {
+                isFollowing = !isFollowing;
+                followBtn.innerText = `• ${isFollowing ? i18n[currentLang].following : i18n[currentLang].follow}`;
+                followBtn.classList.toggle('following', isFollowing);
+            };
+
+            const doLike = () => {
+                isLiked = !isLiked;
+                currentLikes += isLiked ? 1 : -1;
+                stats.innerText = `${currentLikes} ${i18n[currentLang].likes}`;
+                likeBtn.classList.toggle('liked', isLiked);
+                likeBtn.querySelector('svg').innerHTML = isLiked ? 
+                    `<path class="filled" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>` : 
+                    `<path class="icon-path" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`;
+            };
+
+            media.ondblclick = (e) => {
+                if (e.target.closest('.video-controls')) return;
+                
+                if(!isLiked) doLike();
+                popHeart.classList.remove('animate');
+                void popHeart.offsetWidth;
+                popHeart.classList.add('animate');
+            };
+            likeBtn.onclick = doLike;
+
+            media.onclick = (e) => {
+                if (e.target.closest('.video-controls') || e.target.closest('.video-error-overlay')) return;
+                
+                if (videoEl.paused) {
+                    videoEl.play();
+                } else {
+                    videoEl.pause();
+                }
+            };
+
+            volBtn.onclick = (e) => {
+                e.stopPropagation();
+                
+                if (videoEl.muted) {
+                    videoEl.muted = false;
+                    volIcon.innerHTML = `<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>`;
+                } else {
+                    videoEl.muted = true;
+                    volIcon.innerHTML = `<path d="M3.63 3.63L2.22 5.05L7 9.83v4.35l4 4V13.8l5.46 5.46c-.45.33-.94.61-1.46.81v2.04c1.07-.26 2.06-.75 2.92-1.43l3.03 3.03l1.41-1.41L3.63 3.63zM9 14.17H5v-4h1.17l2.83 2.83v1.17zM15 12c0-1.1-.49-2.07-1.25-2.73l1.43-1.43C16.35 8.92 17 10.38 17 12c0 2.4-1.44 4.46-3.5 5.37v-2.15c.87-.71 1.5-1.78 1.5-3.22zm1.5-7.51c2.89 1.15 5 4 5 7.33a8.9 8.9 0 0 1-1.12 4.31l-1.47-1.47A6.98 6.98 0 0 0 19 11.82c0-2.36-1.52-4.37-3.64-5.12L16.5 4.49zM11 5.82v2.35L8.65 5.82L11 5.82z"/>`;
+                }
+            };
+
+            // Enhanced Share overlay activation
+            el.querySelector('.share-trigger').onclick = () => {
+                currentSharedPost = postObject; // Update pointer with active context
+                document.getElementById('shareModal').style.display = 'flex';
+            };
+
+            input.oninput = () => postBtn.classList.toggle('active', input.value.trim() !== "");
+            postBtn.onclick = () => {
+                const val = input.value.trim();
+                if(!val) return;
+                const cRow = document.createElement('div');
+                cRow.className = 'comment-row';
+                cRow.innerHTML = `<b class="user-label">${i18n[currentLang].you}</b> ${val}`;
+                commList.appendChild(cRow);
+                input.value = '';
+                postBtn.classList.remove('active');
+            };
+        }
+
+        function updateLanguageUI() {
+            const d = i18n[currentLang];
+            document.getElementById('createTxt').innerText = d.create;
+            document.getElementById('shareTitle').innerText = d.shareTitle;
+            document.getElementById('friendTxt').innerText = d.friend;
+            document.getElementById('familyTxt').innerText = d.family;
+            document.getElementById('othersTxt').innerText = d.others;
+            document.getElementById('echoQuote').innerText = d.echoQuote;
+            document.getElementById('echoAuthor').innerText = d.echoAuthor;
+            document.getElementById('closeEchoBtn').innerText = d.returnBtn;
+
+            // Updated translated share items
+            document.getElementById('copyLinkTxt').innerText = d.copyLinkTxt;
+            document.getElementById('conceptBtnTxt').innerText = d.conceptBtnTxt;
+            document.getElementById('soulEchoTxt').innerText = d.soulEchoTxt;
+            document.getElementById('conceptTitle').innerText = d.conceptTitle;
+            document.getElementById('conceptBody').innerText = d.conceptBody;
+            document.getElementById('closeConceptBtn').innerText = d.closeConcept;
+
+            const userLabels = document.querySelectorAll('.user-label');
+            userLabels.forEach(label => {
+                label.innerText = d.you;
+            });
+
+            const errorTitles = document.querySelectorAll('.err-title');
+            errorTitles.forEach(t => t.innerText = d.errorTitle);
+
+            const errorGuides = document.querySelectorAll('.err-guide');
+            errorGuides.forEach(g => g.innerText = d.errorGuide);
+
+            postsData.forEach(p => {
+                const fBtn = document.getElementById(`follow-${p.id}`);
+                if (fBtn) fBtn.innerText = `• ${fBtn.classList.contains('following') ? d.following : d.follow}`;
+                const s = document.getElementById(`stat-${p.id}`);
+                if (s) s.innerText = `${s.innerText.split(' ')[0]} ${d.likes}`;
+                const inp = document.getElementById(`input-${p.id}`);
+                if (inp) inp.placeholder = d.commentPlaceholder;
+                const pb = document.getElementById(`post-${p.id}`);
+                if (pb) pb.innerText = d.post;
+            });
+        }
+
+        // Kickstart simulation on view load
+        window.onload = () => {
+            init();
+            // Load base translated strings
+            updateLanguageUI();
+        };
+    </script>
+</body>
+</html>
